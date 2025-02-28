@@ -8,12 +8,14 @@
         "php": "^8.4",
         "darkaonline/l5-swagger": "^8.6",
         "filament/filament": "^3.2",
+        "firebase/php-jwt": "^6.11",
         "laravel/framework": "^11.33",
         "laravel/octane": "^2.5",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.5",
         "tymon/jwt-auth": "^2.1",
+        "workos/workos-php": "^4.20",
         "zircote/swagger-php": "^4.10"
     },
     "require-dev": {

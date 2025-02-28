@@ -10,8 +10,10 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Symfony\Component\HttpFoundation\Response;
+use WorkOS\Exception\WorkOSException;
+use WorkOS\Resource\AuthenticationResponse;
+use WorkOS\UserManagement;
+use WorkOS\WorkOS;
 
 final class LoginController extends Controller
 {
@@ -54,28 +56,41 @@ final class LoginController extends Controller
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
-            'password' => ['required'],
+            'password' => ['required_without:auth_provider'],
+            'auth_provider' => ['in:workos'],
         ]);
 
-        $user = User::query()
-            ->where('email', $validated['email'])
-            ->first();
+        WorkOS::setApiKey(config('workos.api_key'));
+        WorkOS::setClientId(config('workos.client_id'));
 
-        if ($user === null || ! Hash::check($validated['password'], $user->password)) {
+        $userManagement = new UserManagement;
+
+        try {
+            $authResponse = $userManagement->authenticateWithPassword(
+                clientId: config('workos.client_id'),
+                email: $validated['email'],
+                password: $validated['password'],
+            );
+        } catch (WorkOSException $e) {
+            throw new AuthenticationException($e->responseMessage ?? $e->getMessage());
+        }
+
+        $workOSUser = $authResponse->user;
+
+        $user = User::query()->where('email', $workOSUser->email)->first();
+
+        if ($user === null) {
             throw new AuthenticationException;
         }
 
-        if (! $token = Auth::claims(['internal_user_id' => $user->uuid])->attempt($validated)) {
-            return response()->json(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
-        }
-
-        return $this->respondWithToken($token);
+        return $this->respondWithToken($authResponse);
     }
 
-    protected function respondWithToken($token): JsonResponse
+    protected function respondWithToken(AuthenticationResponse $authResponse): JsonResponse
     {
         return response()->json([
-            'access_token' => $token,
+            'access_token' => $authResponse->access_token,
+            'refresh_token' => $authResponse->refresh_token,
             'token_type' => 'bearer',
             'expires_in' => Auth::factory()->getTTL() * 60,
         ]);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Exceptions\ApiExceptionHandler;
 use App\Http\Middleware\AcceptApplicationJsonHeader;
+use App\Http\Middleware\WorkOSTokenMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(AcceptApplicationJsonHeader::class);
+        $middleware->alias([
+            'auth.token' => WorkOSTokenMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (Throwable $e, Request $request) {

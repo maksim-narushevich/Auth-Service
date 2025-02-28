@@ -44,6 +44,9 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'phone',
         'password',
+        'workos_user_id',
+        'profile_picture_url',
+        'authentication_method',
     ];
 
     /**
@@ -103,6 +106,11 @@ class User extends Authenticatable implements JWTSubject
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    public function getAuthIdentifierName(): string
+    {
+        return 'uuid';
     }
 
     protected function fullName(): Attribute
