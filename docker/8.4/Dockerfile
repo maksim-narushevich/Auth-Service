@@ -55,8 +55,13 @@ RUN apt-get update && apt-get upgrade -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Install screen
-RUN apt-get update && apt-get install -y screen
+# Install screen and kafka
+RUN apt-get update && apt-get install -y screen \
+    && apt-get install -y librdkafka-dev
+
+# Install the rdkafka extension via PECL
+RUN pecl install rdkafka
+
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.4
 
 RUN userdel -r ubuntu

@@ -24,9 +24,11 @@ services:
             - '.:/var/www/html'
         networks:
             - sbc
+            - sbs-shared
         depends_on:
             - auth_mysql
             - auth_redis
+            - kafka
 
     auth_mysql:
         image: 'mysql/mysql-server:8.0'
@@ -45,6 +47,7 @@ services:
             - './docker/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
         networks:
             - sbc
+            - sbs-shared
         healthcheck:
             test:
                 - CMD
@@ -62,6 +65,7 @@ services:
             - 'sbc-auth-redis:/data'
         networks:
             - sbc
+            - sbs-shared
         healthcheck:
             test:
                 - CMD
@@ -74,15 +78,59 @@ services:
         image: axllent/mailpit
         networks:
             - sbc
+            - sbs-shared
         ports:
             - "8025:8025"
             - "1025:1025"
 
+    kafka:
+        image: apache/kafka-native
+        ports:
+            - "9092:9092"
+        networks:
+            - sbc
+            - sbs-shared
+        environment:
+            # Configure listeners for both docker and host communication
+            KAFKA_LISTENERS: CONTROLLER://localhost:9091,HOST://0.0.0.0:9092,DOCKER://0.0.0.0:9093
+            KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:9093
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT,HOST:PLAINTEXT
+
+            # Settings required for KRaft mode
+            KAFKA_NODE_ID: 1
+            KAFKA_PROCESS_ROLES: broker,controller
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9091
+
+            # Listener to use for broker-to-broker communication
+            KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+
+            # Required for a single node cluster
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+    kafka-ui:
+        image: ghcr.io/kafbat/kafka-ui:latest
+        ports:
+            - 8080:8080
+        environment:
+            DYNAMIC_CONFIG_ENABLED: "true"
+            KAFKA_CLUSTERS_0_NAME: local
+            KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+        networks:
+            - sbc
+            - sbs-shared
+        depends_on:
+            - kafka
+
 networks:
+    sbs-shared:
+        external: true
     sbc:
         driver: bridge
 volumes:
     sbc-auth-mysql:
         driver: local
     sbc-auth-redis:
+        driver: local
+    kafka-data:
         driver: local
